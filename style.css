@@ -1,0 +1,15 @@
+body {
+    margin: 0;
+    padding: 0;
+    background-color: black; /* Makes the surrounding bars look like part of the game */
+    display: flex;
+    justify-content: center; /* Centers horizontally */
+    align-items: center;     /* Centers vertically */
+    height: 100vh;           /* Takes up the full height of the browser window */
+    overflow: hidden;        /* Prevents scrollbars from appearing */
+}
+
+canvas {
+    border: 2px solid #333;  /* Optional: adds a slight border so you can see the edges */
+    image-rendering: pixelated; /* Keeps your pixel art sharp */
+}
