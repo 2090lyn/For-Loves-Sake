@@ -1,3 +1,22 @@
+class Boundary {
+    static width = 54;
+    static height = 53;
+    constructor({ position }) {
+        this.position = position
+        this.width = Boundary.width
+        this.height = Boundary.height
+    }
+    draw() {
+        c.fillStyle = 'rgba(255, 0, 0, 0)';
+        c.fillRect(
+            this.position.x,
+            this.position.y,
+            this.width,
+            this.height
+        )
+    }
+}
+
 class Sprite {
     constructor({ position, velocity, image, frames = { max: 1 }}) {
         this.position = position
@@ -23,25 +42,6 @@ class Sprite {
             // location of character
             this.img.width / this.frames.max, // crop width
             this.img.height, // crop height
-        )
-    }
-}
-
-class Boundary {
-    static width = 54;
-    static height = 53;
-    constructor({ position }) {
-        this.position = position
-        this.width = Boundary.width
-        this.height = Boundary.height
-    }
-    draw() {
-        c.fillStyle = 'rgba(255, 0, 0, 0)';
-        c.fillRect(
-            this.position.x,
-            this.position.y,
-            this.width,
-            this.height
         )
     }
 }
