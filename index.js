@@ -32,7 +32,9 @@ collisionsMap.forEach((row, i) => {
 
 const img = new Image()
 img.src = './img/main.png'
-console.log(img);
+
+const foregroundImg = new Image()
+foregroundImg.src = './img/foreground.png'
 
 const playerImg = new Image()
 playerImg.src = './img/playerDown.png'
@@ -63,7 +65,7 @@ const foreground = new Sprite({
         x: offset.x,
         y: offset.y 
     },
-    image: img
+    image: foregroundImg
 })
 
 const keys = {
@@ -81,7 +83,7 @@ const keys = {
     }
 }
 
-const movables = [background, ...boundaries];
+const movables = [background, ...boundaries, foreground];
 function rectangularCollision({ rectangle1, rectangle2 }) {
     return (
         rectangle1.position.x + rectangle1.width >=  rectangle2.position.x && 
@@ -98,8 +100,9 @@ function animate() {
         boundary.draw(background.position);
     })
     player.draw();
-let moving = true;
+    foreground.draw();
 
+let moving = true;
 // Moves character + collision detection
     if (keys.w.pressed) {
         for (let i = 0; i < boundaries.length; i++) {
