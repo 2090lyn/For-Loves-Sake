@@ -148,13 +148,6 @@ const background = new Sprite({
     image: img
 })
 
-const foreground = new Sprite({
-    position: {
-        x: offset.x,
-        y: offset.y 
-    },
-    image: img
-})
 
 const keys = {
     w: {
