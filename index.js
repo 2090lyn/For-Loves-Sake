@@ -1,6 +1,15 @@
 const canvas = document.querySelector('canvas');
 const c = canvas.getContext('2d'); // c = context
 
+
+// batte activation 
+// gsap.to('#fade', {
+//     opacity: 1,
+//     repeat: 3,
+//     duration: .4,
+//     yoyo: true
+// })
+
 canvas.width = 1280
 canvas.height = 720
 
@@ -144,7 +153,7 @@ function rectangularCollision({ rectangle1, rectangle2 }) {
 }
 
 function animate() {
-    window.requestAnimationFrame(animate);
+    const animationId = window.requestAnimationFrame(animate);
     background.draw();
     boundaries.forEach(boundary => {
         boundary.draw(background.position);
@@ -163,6 +172,7 @@ function animate() {
 
     // enter zone detection
     let isOnEnterZone = false;
+    let enterInitiated = false;
     for (let i = 0; i < enterZones.length; i++) {
         const zone = enterZones[i];
         if (rectangularCollision({
@@ -172,6 +182,20 @@ function animate() {
             isOnEnterZone = true;
             if (keys.e.pressed) {
                 console.log('Transitioning to new map!')
+                window.cancelAnimationFrame(animationId);
+                enterInitiated = true;
+                gsap.to('#fade', {
+                    opacity: 1,
+                    duration: 0.8,
+                    onComplete() {
+                        gsap.to('#fade', {
+                            opacity: 0,
+                            duration: 0.8,
+                            delay: 0.5
+                        })
+                        // change map here 
+                    }
+                })
                 keys.e.pressed =false;
             }
             break;
@@ -195,6 +219,12 @@ function animate() {
 
 let moving = true;
 player.moving = false;
+
+    if (enterInitiated) {
+        return;
+    }
+
+
 // Moves character + collision detection
     if (keys.w.pressed) {
         player.moving = true;
