@@ -1,6 +1,8 @@
 const canvas = document.querySelector('canvas');
 const c = canvas.getContext('2d'); // c = context
 
+let currentMap = 'overworld';
+let enterInitiated = false;
 
 // batte activation 
 // gsap.to('#fade', {
@@ -13,72 +15,86 @@ const c = canvas.getContext('2d'); // c = context
 canvas.width = 1280
 canvas.height = 720
 
-const collisionsMap = []
-for (let i = 0; i < collisions.length; i+=53) {
-    collisionsMap.push(collisions.slice(i, 53 + i));
-}
+// // ----------- Collisions + Enter Zones -----------
+// // main map
+// const collisionsMap = []
+// for (let i = 0; i < collisions.length; i+=53) {
+//     collisionsMap.push(collisions.slice(i, 53 + i));
+// }
 
-const enterZonesMap = []
-for (let i = 0; i < enterZonesData.length; i+=53) {
-    enterZonesMap.push(enterZonesData.slice(i, 53 + i));
-}
-
+// const enterZonesMap = []
+// for (let i = 0; i < enterZonesData.length; i+=53) {
+//     enterZonesMap.push(enterZonesData.slice(i, 53 + i));
+// }
 
 const boundaries = [];
+const enterZones = [];
+
+// const boundaries = [];
 const offset = {
     x: -1198,
     y: -40
 }
-collisionsMap.forEach((row, i) => {
-    row.forEach((symbol, j) => {
-        if (symbol === 1025) { // ensure comparison works
-            boundaries.push(
-                new Boundary({
-                    position: {
-                        x: j * Boundary.width + offset.x,
-                        y: i * Boundary.height + offset.y
-                    }
-                })
-            )
-        }
-    })
+// collisionsMap.forEach((row, i) => {
+//     row.forEach((symbol, j) => {
+//         if (symbol === 1025) { // ensure comparison works
+//             boundaries.push(
+//                 new Boundary({
+//                     position: {
+//                         x: j * Boundary.width + offset.x,
+//                         y: i * Boundary.height + offset.y
+//                     }
+//                 })
+//             )
+//         }
+//     })
+// });
+
+// const enterZones = [];
+
+// enterZonesMap.forEach((row, i) => {
+//     row.forEach((symbol, j) => {
+//         if (symbol === 1025) { // ensure comparison works
+//             enterZones.push(
+//                 new Boundary({
+//                     position: {
+//                         x: j * Boundary.width + offset.x,
+//                         y: i * Boundary.height + offset.y
+//                     }
+//                 })
+//             )
+//         }
+//     })
+// });
+
+
+
+// ----------- Images + Sprites -----------
+// main map
+let background = new Sprite({
+    position: { x: -1198, y: -40 },
+    image: new Image()
 });
 
-const enterZones = [];
-
-enterZonesMap.forEach((row, i) => {
-    row.forEach((symbol, j) => {
-        if (symbol === 1025) { // ensure comparison works
-            enterZones.push(
-                new Boundary({
-                    position: {
-                        x: j * Boundary.width + offset.x,
-                        y: i * Boundary.height + offset.y
-                    }
-                })
-            )
-        }
-    })
+let foreground = new Sprite({
+    position: { x: -1198, y: -40 },
+    image: new Image()
 });
 
-const img = new Image()
-img.src = './img/main.png'
+background.img.src = './img/main.png';
+foreground.img.src = './img/foreground.png';
 
-const foregroundImg = new Image()
-foregroundImg.src = './img/foreground.png'
 
-const playerDownImg = new Image()
-playerDownImg.src = './img/playerDown.png'
 
-const playerUpImg = new Image()
-playerUpImg.src = './img/playerUp.png'
 
-const playerLeftImg = new Image()
-playerLeftImg.src = './img/playerLeft.png'
+// // house map
+// const imgHouse = new Image(); imgHouse.src = './img/house.png'
 
-const playerRightImg = new Image()
-playerRightImg.src = './img/playerRight.png'
-
+// player
+const playerDownImg = new Image(); playerDownImg.src = './img/playerDown.png'
+const playerUpImg = new Image(); playerUpImg.src = './img/playerUp.png'
+const playerLeftImg = new Image(); playerLeftImg.src = './img/playerLeft.png'
+const playerRightImg = new Image(); playerRightImg.src = './img/playerRight.png'
 
 const player = new Sprite ({
     position: {
@@ -98,21 +114,7 @@ const player = new Sprite ({
     }
 })
 
-const background = new Sprite({
-    position: {
-        x: offset.x,
-        y: offset.y 
-    },
-    image: img
-})
-
-const foreground = new Sprite({
-    position: {
-        x: offset.x,
-        y: offset.y 
-    },
-    image: foregroundImg
-})
+// ----------------------------------------------
 
 const keys = {
     w: { pressed: false },
@@ -152,8 +154,158 @@ function rectangularCollision({ rectangle1, rectangle2 }) {
     )
 }
 
+// function switchtoHouseMap() {
+//     console.log('switched to house map');
+//     currentMap = 'house';
+//     background.img = imgHouse;
+//     background.position = {
+//         x: 0,
+//         y: 0
+//     }
+//     foreground.img = null;
+//     boundaries.length = 0;
+// }
+
+function loadBoundaries(data, columns, symbol, offset, targetArray, gridOffset = { x: 0, y: 0 }) {
+    // Convert 1D array to 2D map
+    const map2D = [];
+    for (let i = 0; i < data.length; i += columns) {
+        map2D.push(data.slice(i, columns + i));
+    }
+
+    // Iterate over each tile
+    map2D.forEach((row, i) => {
+        row.forEach((tileSymbol, j) => {
+            if (tileSymbol === symbol) {
+                targetArray.push(
+                    new Boundary({
+                        position: {
+                            x: j * Boundary.width + offset.x + gridOffset.x,
+                            y: i * Boundary.height + offset.y + gridOffset.y
+                        }
+                    })
+                );
+            }
+        });
+    });
+}
+
+
+function setSpriteImage(sprite, src) {
+    if (!src) return;
+    const nextImage = new Image();
+    nextImage.onload = () => {
+        sprite.img = nextImage;
+        sprite.width = nextImage.width / sprite.frames.max;
+        sprite.height = nextImage.height;
+    };
+    nextImage.src = src;
+}
+
+function loadMap(mapName) {
+    const mapConfig = maps[mapName];
+    if (!mapConfig) return console.error(`Map "${mapName}" not found!`);
+
+    currentMap = mapName;
+    enterInitiated = true;
+
+    const grid = mapConfig.grid || {};
+    const collisionsData = mapConfig.collisions?.data ?? mapConfig.collisions ?? [];
+    const enterZonesData = mapConfig.enterZones?.data ?? mapConfig.enterZones ?? [];
+    const collisionSymbol = mapConfig.collisions?.symbol ?? mapConfig.collisionSymbol;
+    const enterZoneSymbol = mapConfig.enterZones?.symbol ?? mapConfig.enterZoneSymbol;
+    const columns = grid.columns ?? mapConfig.columns;
+    const rows = grid.rows ?? (columns ? (collisionsData.length / columns) : 0);
+    const tileWidth = grid.tileSize?.width ?? mapConfig.tileSize?.width ?? (grid.imageSize && rows ? (grid.imageSize.width / columns) : Boundary.width);
+    const tileHeight = grid.tileSize?.height ?? mapConfig.tileSize?.height ?? (grid.imageSize && rows ? (grid.imageSize.height / rows) : Boundary.height);
+    Boundary.width = tileWidth;
+    Boundary.height = tileHeight;
+
+    const playerWidth = player.width ?? (192 / 4);
+    const playerHeight = player.height ?? 68;
+    const centeredPlayer = {
+        x: canvas.width / 2 - playerWidth / 2,
+        y: canvas.height / 2 - playerHeight / 2
+    };
+
+    const viewOffset = mapConfig.viewOffset || { x: 0, y: 0 };
+    let mapOffset = { x: 0, y: 0 };
+    const gridOffset = mapConfig.gridOffset ?? (grid.imageSize && rows
+        ? {
+            x: (grid.imageSize.width - (tileWidth * columns)) / 2,
+            y: (grid.imageSize.height - (tileHeight * rows)) / 2
+        }
+        : { x: 0, y: 0 });
+    const spawnType = mapConfig.spawnType || 'screen';
+    if (mapConfig.spawn) {
+        if (spawnType === 'screen') {
+            player.position.x = mapConfig.spawn.x;
+            player.position.y = mapConfig.spawn.y;
+            mapOffset = { ...(grid.offset || mapConfig.offset || { x: 0, y: 0 }) };
+        } else {
+            const spawnWorld = (spawnType === 'tile')
+                ? { x: mapConfig.spawn.x * tileWidth, y: mapConfig.spawn.y * tileHeight }
+                : { x: mapConfig.spawn.x, y: mapConfig.spawn.y };
+            mapOffset = {
+                x: centeredPlayer.x - spawnWorld.x,
+                y: centeredPlayer.y - spawnWorld.y
+            };
+            player.position.x = centeredPlayer.x;
+            player.position.y = centeredPlayer.y;
+        }
+    } else {
+        player.position.x = centeredPlayer.x;
+        player.position.y = centeredPlayer.y;
+        mapOffset = { ...(grid.offset || mapConfig.offset || { x: 0, y: 0 }) };
+    }
+    mapOffset = {
+        x: mapOffset.x + viewOffset.x,
+        y: mapOffset.y + viewOffset.y
+    };
+
+    // swap images
+    setSpriteImage(background, mapConfig.image);
+    background.position = { ...mapOffset };
+
+    setSpriteImage(foreground, mapConfig.foreground);
+    foreground.position = { ...mapOffset };
+
+    // reset arrays
+    boundaries.length = 0;
+    enterZones.length = 0;
+
+    // reload collisions
+    loadBoundaries(
+        collisionsData,
+        columns,
+        collisionSymbol,
+        mapOffset,
+        boundaries,
+        gridOffset
+    );
+
+    // reload enter zones
+    loadBoundaries(
+        enterZonesData,
+        columns,
+        enterZoneSymbol,
+        mapOffset,
+        enterZones,
+        gridOffset
+    );
+
+    // rebuild movables
+    movables.length = 0;
+    movables.push(background, ...boundaries, foreground, ...enterZones);
+
+    enterInitiated = false;
+}
+
 function animate() {
     const animationId = window.requestAnimationFrame(animate);
+    c.clearRect(0, 0, canvas.width, canvas.height);
+    const mapConfig = maps[currentMap];
+    const foregroundAbovePlayer = mapConfig?.foregroundAbovePlayer !== false;
     background.draw();
     boundaries.forEach(boundary => {
         boundary.draw(background.position);
@@ -163,8 +315,13 @@ function animate() {
         enterZone.draw();
     })
 
+    if (!foregroundAbovePlayer) {
+        foreground.draw();
+    }
     player.draw();
-    foreground.draw();
+    if (foregroundAbovePlayer) {
+        foreground.draw();
+    }
 
     // doors.forEach(door => {
     //     door.draw();
@@ -172,7 +329,6 @@ function animate() {
 
     // enter zone detection
     let isOnEnterZone = false;
-    let enterInitiated = false;
     for (let i = 0; i < enterZones.length; i++) {
         const zone = enterZones[i];
         if (rectangularCollision({
@@ -180,24 +336,26 @@ function animate() {
             rectangle2: zone
         })) {
             isOnEnterZone = true;
-            if (keys.e.pressed) {
-                console.log('Transitioning to new map!')
-                window.cancelAnimationFrame(animationId);
+            if (keys.e.pressed && !enterInitiated) {
+                console.log('Transitioning to new map!');
                 enterInitiated = true;
+                keys.e.pressed =false;
+
+                const nextMap = currentMap === 'overworld' ? 'house' : 'overworld';
                 gsap.to('#fade', {
                     opacity: 1,
                     duration: 0.8,
                     onComplete() {
+                        loadMap(nextMap);
                         gsap.to('#fade', {
                             opacity: 0,
                             duration: 0.8,
-                            delay: 0.5
+                            delay: 0.5,
                         })
-                        // change map here 
                     }
                 })
-                keys.e.pressed =false;
             }
+            keys.e.pressed =false;
             break;
         }
     }
@@ -322,6 +480,7 @@ player.moving = false;
 }
 
 animate();
+loadMap('overworld');
 
 let lastKey = '';
 window.addEventListener('keydown', (e) => {
