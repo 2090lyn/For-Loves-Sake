@@ -190,6 +190,30 @@ function loadBoundaries(data, columns, symbol, offset, targetArray, gridOffset =
     });
 }
 
+function loadEnterZones({ data, columns, offset, gridOffset = { x: 0, y: 0 }, zoneTypes, targetArray }) {
+    if (!data || !zoneTypes) return;
+    const map2D = [];
+    for (let i = 0; i < data.length; i += columns) {
+        map2D.push(data.slice(i, columns + i));
+    }
+
+    map2D.forEach((row, i) => {
+        row.forEach((tileSymbol, j) => {
+            const action = zoneTypes[tileSymbol];
+            if (!action) return;
+            const zone = new Boundary({
+                position: {
+                    x: j * Boundary.width + offset.x + gridOffset.x,
+                    y: i * Boundary.height + offset.y + gridOffset.y
+                }
+            });
+            zone.action = action;
+            zone.symbol = tileSymbol;
+            targetArray.push(zone);
+        });
+    });
+}
+
 
 function setSpriteImage(sprite, src) {
     if (!src) return;
@@ -208,6 +232,9 @@ function loadMap(mapName) {
 
     currentMap = mapName;
     enterInitiated = true;
+    if (gameStarted) {
+        playBgm(mapConfig.bgm);
+    }
 
     const grid = mapConfig.grid || {};
     const collisionsData = mapConfig.collisions?.data ?? mapConfig.collisions ?? [];
@@ -496,8 +523,84 @@ player.moving = false;
     
 }
 
-animate();
-loadMap('overworld');
+const startScreen = document.getElementById('startScreen');
+const startButton = document.getElementById('startButton');
+const bgm = document.getElementById('bgm');
+const muteButton = document.getElementById('muteButton');
+const volumeSlider = document.getElementById('volumeSlider');
+let isMuted = false;
+let userVolume = 0.5;
+let gameStarted = false;
+
+function applyVolume() {
+    if (!bgm) return;
+    bgm.volume = userVolume;
+    bgm.muted = isMuted;
+    if (muteButton) {
+        muteButton.textContent = isMuted ? 'Unmute' : 'Mute';
+    }
+}
+
+function playBgm(src) {
+    if (!bgm || !src) return;
+    if (bgm.dataset.src === src) return;
+
+    const startTrack = () => {
+        bgm.src = src;
+        bgm.dataset.src = src;
+        bgm.loop = true;
+        applyVolume();
+        bgm.play().catch(() => {});
+    };
+
+    if (bgm.paused || !bgm.dataset.src) {
+        startTrack();
+        return;
+    }
+
+    gsap.to(bgm, {
+        volume: 0,
+        duration: 0.4,
+        onComplete: () => {
+            startTrack();
+            gsap.to(bgm, { volume: userVolume, duration: 0.6 });
+        }
+    });
+}
+
+function startGame() {
+    if (gameStarted) return;
+    gameStarted = true;
+    gsap.set('#fade', { opacity: 1 });
+    gsap.to('#startScreen', {
+        opacity: 0,
+        duration: 0.6,
+        onComplete: () => {
+            startScreen.classList.add('hidden');
+            startScreen.style.opacity = '';
+        }
+    });
+    loadMap('overworld');
+    animate();
+    playBgm(maps.overworld?.bgm);
+    gsap.to('#fade', { opacity: 0, duration: 1, delay: 0.1 });
+}
+
+startButton.addEventListener('click', startGame);
+
+if (muteButton) {
+    muteButton.addEventListener('click', () => {
+        isMuted = !isMuted;
+        applyVolume();
+    });
+}
+
+if (volumeSlider) {
+    volumeSlider.addEventListener('input', (e) => {
+        userVolume = Number(e.target.value);
+        applyVolume();
+    });
+}
 
 let lastKey = '';
 window.addEventListener('keydown', (e) => {

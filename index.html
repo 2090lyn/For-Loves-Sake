@@ -7,8 +7,20 @@
 </head>
 <body>
     <div id="container">
+        <div id="startScreen">
+            <div id="startCard">
+                <h1>For Love's Sake</h1>
+                <button id="startButton" type="button">Play</button>
+            </div>
+        </div>
         <div id="fade"></div>
         <canvas></canvas>
+        <audio id="bgm" src="./audio/bgm.mp3" loop preload="auto"></audio>
+        <div id="audioControls">
+            <button id="muteButton" type="button">Mute</button>
+            <label for="volumeSlider">Volume</label>
+            <input id="volumeSlider" type="range" min="0" max="1" step="0.01" value="0.5" />
+        </div>
     </div>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.9.1/gsap.min.js" integrity="sha512-H6cPm97FAsgIKmlBA4s774vqoN24V5gSQL4yBTDOY2su2DeXZVhQPxFK4P6GPdnZqM9fg1G3cMv5wD7e6cFLZQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
     <script src="data/enterZones.js"></script>
