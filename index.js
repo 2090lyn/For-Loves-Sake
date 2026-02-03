@@ -229,7 +229,7 @@ function loadMap(mapName) {
     };
 
     const viewOffset = mapConfig.viewOffset || { x: 0, y: 0 };
-    let mapOffset = { x: 0, y: 0 };
+    let offset = { x: 0, y: 0 };
     const gridOffset = mapConfig.gridOffset ?? (grid.imageSize && rows
         ? {
             x: (grid.imageSize.width - (tileWidth * columns)) / 2,
@@ -241,12 +241,12 @@ function loadMap(mapName) {
         if (spawnType === 'screen') {
             player.position.x = mapConfig.spawn.x;
             player.position.y = mapConfig.spawn.y;
-            mapOffset = { ...(grid.offset || mapConfig.offset || { x: 0, y: 0 }) };
+            offset = { ...(grid.offset || mapConfig.offset || { x: 0, y: 0 }) };
         } else {
             const spawnWorld = (spawnType === 'tile')
                 ? { x: mapConfig.spawn.x * tileWidth, y: mapConfig.spawn.y * tileHeight }
                 : { x: mapConfig.spawn.x, y: mapConfig.spawn.y };
-            mapOffset = {
+            offset = {
                 x: centeredPlayer.x - spawnWorld.x,
                 y: centeredPlayer.y - spawnWorld.y
             };
@@ -256,19 +256,19 @@ function loadMap(mapName) {
     } else {
         player.position.x = centeredPlayer.x;
         player.position.y = centeredPlayer.y;
-        mapOffset = { ...(grid.offset || mapConfig.offset || { x: 0, y: 0 }) };
+        offset = { ...(grid.offset || mapConfig.offset || { x: 0, y: 0 }) };
     }
-    mapOffset = {
-        x: mapOffset.x + viewOffset.x,
-        y: mapOffset.y + viewOffset.y
+    offset = {
+        x: offset.x + viewOffset.x,
+        y: offset.y + viewOffset.y
     };
 
     // swap images
     setSpriteImage(background, mapConfig.image);
-    background.position = { ...mapOffset };
+    background.position = { ...offset };
 
     setSpriteImage(foreground, mapConfig.foreground);
-    foreground.position = { ...mapOffset };
+    foreground.position = { ...offset };
 
     // reset arrays
     boundaries.length = 0;
@@ -279,7 +279,7 @@ function loadMap(mapName) {
         collisionsData,
         columns,
         collisionSymbol,
-        mapOffset,
+        offset,
         boundaries,
         gridOffset
     );
@@ -289,7 +289,7 @@ function loadMap(mapName) {
         enterZonesData,
         columns,
         enterZoneSymbol,
-        mapOffset,
+        offset,
         enterZones,
         gridOffset
     );
@@ -307,14 +307,6 @@ function animate() {
     const mapConfig = maps[currentMap];
     const foregroundAbovePlayer = mapConfig?.foregroundAbovePlayer !== false;
     background.draw();
-    boundaries.forEach(boundary => {
-        boundary.draw(background.position);
-    })
-
-    enterZones.forEach(enterZone => {
-        enterZone.draw();
-    })
-
     if (!foregroundAbovePlayer) {
         foreground.draw();
     }
@@ -322,6 +314,15 @@ function animate() {
     if (foregroundAbovePlayer) {
         foreground.draw();
     }
+
+    // draw boundaries/zones last so they stay visible
+    boundaries.forEach(boundary => {
+        boundary.draw(background.position);
+    });
+
+    enterZones.forEach(enterZone => {
+        enterZone.draw();
+    });
 
     // doors.forEach(door => {
     //     door.draw();
