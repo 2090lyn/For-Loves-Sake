@@ -21,16 +21,17 @@ const maps = {
         foreground: './img/foregroundHouse.png',
         foregroundAbovePlayer: true,
         spawnType: 'tile',
-        spawn: { x: 40, y: 61 },
+        spawn: { x: 13.5, y: 20 },
         viewOffset: { x: 0, y: 0 },
         grid: {
             columns: 34,
             rows: 25,
-            imageSize: { width: 785, height: 577 },
+            imageSize: { width: 1632, height: 1200 },
             tileSize: { width: 16, height: 16 },
+            scale: 3,
             offset: { x: 248, y: 72 }
         },
-        collisions: { data: houseCollisions, symbol: 1777 },
-        enterZones: { data: houseEnterZonesData, symbol: 1777 }
+        collisions: { data: houseCollisions, symbol: 1544 },
+        enterZones: { data: houseEnterZonesData, symbol: 1544 }
     }
 };

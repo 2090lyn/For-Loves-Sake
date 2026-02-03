@@ -216,8 +216,17 @@ function loadMap(mapName) {
     const enterZoneSymbol = mapConfig.enterZones?.symbol ?? mapConfig.enterZoneSymbol;
     const columns = grid.columns ?? mapConfig.columns;
     const rows = grid.rows ?? (columns ? (collisionsData.length / columns) : 0);
-    const tileWidth = grid.tileSize?.width ?? mapConfig.tileSize?.width ?? (grid.imageSize && rows ? (grid.imageSize.width / columns) : Boundary.width);
-    const tileHeight = grid.tileSize?.height ?? mapConfig.tileSize?.height ?? (grid.imageSize && rows ? (grid.imageSize.height / rows) : Boundary.height);
+    const baseTileWidth = grid.tileSize?.width ?? mapConfig.tileSize?.width ?? Boundary.width;
+    const baseTileHeight = grid.tileSize?.height ?? mapConfig.tileSize?.height ?? Boundary.height;
+    let tileWidth = baseTileWidth;
+    let tileHeight = baseTileHeight;
+    if (grid.scale) {
+        tileWidth = baseTileWidth * grid.scale;
+        tileHeight = baseTileHeight * grid.scale;
+    } else if (grid.imageSize && rows) {
+        tileWidth = grid.imageSize.width / columns;
+        tileHeight = grid.imageSize.height / rows;
+    }
     Boundary.width = tileWidth;
     Boundary.height = tileHeight;
 
@@ -243,9 +252,16 @@ function loadMap(mapName) {
             player.position.y = mapConfig.spawn.y;
             offset = { ...(grid.offset || mapConfig.offset || { x: 0, y: 0 }) };
         } else {
-            const spawnWorld = (spawnType === 'tile')
-                ? { x: mapConfig.spawn.x * tileWidth, y: mapConfig.spawn.y * tileHeight }
-                : { x: mapConfig.spawn.x, y: mapConfig.spawn.y };
+            let spawnWorld;
+            if (spawnType === 'tile') {
+                const maxX = Math.max(0, (columns ?? 1) - 1);
+                const maxY = Math.max(0, (rows ?? 1) - 1);
+                const clampedX = Math.max(0, Math.min(mapConfig.spawn.x, maxX));
+                const clampedY = Math.max(0, Math.min(mapConfig.spawn.y, maxY));
+                spawnWorld = { x: clampedX * tileWidth, y: clampedY * tileHeight };
+            } else {
+                spawnWorld = { x: mapConfig.spawn.x, y: mapConfig.spawn.y };
+            }
             offset = {
                 x: centeredPlayer.x - spawnWorld.x,
                 y: centeredPlayer.y - spawnWorld.y
