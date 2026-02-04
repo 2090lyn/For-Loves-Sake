@@ -2,6 +2,7 @@ const canvas = document.querySelector('canvas');
 const c = canvas.getContext('2d'); // c = context
 
 let currentMap = 'overworld';
+let previousMap = null;
 let enterInitiated = false;
 let activeDialogue = '';
 let dialogueUntil = 0;
@@ -83,7 +84,9 @@ const keys = {
     a: { pressed: false },
     s: { pressed: false },
     d: { pressed: false },
-    e: { pressed: false }
+    e: { pressed: false },
+    up: { pressed: false },
+    down: { pressed: false }
 }
 
 // const dungeonDoorImg = new Image()
@@ -264,10 +267,171 @@ function findNearestOpenTile(startX, startY, config) {
     return { x: startX, y: startY };
 }
 
+// ----------- Ping Pong -------------
+const pongState = {
+    active: false,
+    paddle: { width: 12, height: 84, speed: 6 },
+    left: { x: 30, y: 0 },
+    right: { x: 0, y: 0 },
+    ball: { x: 0, y: 0, vx: 4, vy: 3, radius: 6, speed: 4 },
+    baseSpeed: 4,
+    maxSpeed: 11,
+    speedStep: 1,
+    score: { left: 0, right: 0 },
+    winner: null
+};
+
+function resetPongBall(direction = 1) {
+    pongState.ball.x = canvas.width / 2;
+    pongState.ball.y = canvas.height / 2;
+    pongState.ball.speed = pongState.baseSpeed;
+    const angle = (Math.random() * 0.5 - 0.25); // slight vertical angle
+    pongState.ball.vx = Math.cos(angle) * pongState.ball.speed * direction;
+    pongState.ball.vy = Math.sin(angle) * pongState.ball.speed;
+}
+
+function initPong() {
+    pongState.active = true;
+    pongState.score.left = 0;
+    pongState.score.right = 0;
+    pongState.winner = null;
+    pongState.left.x = 30;
+    pongState.left.y = canvas.height / 2 - pongState.paddle.height / 2;
+    pongState.right.x = canvas.width - 30 - pongState.paddle.width;
+    pongState.right.y = canvas.height / 2 - pongState.paddle.height / 2;
+    resetPongBall(Math.random() > 0.5 ? 1 : -1);
+}
+
+function updatePong() {
+    if (!pongState.active) return;
+
+    if (keys.e.pressed) {
+        const returnTarget = maps.pingPong?.returnTo;
+        keys.e.pressed = false;
+        if (returnTarget?.map) {
+            transitionToMap(returnTarget.map, {
+                spawnType: returnTarget.spawnType,
+                spawn: returnTarget.spawn
+            });
+        } else {
+            const fallback = previousMap && previousMap !== 'pingPong' ? previousMap : 'overworld';
+            transitionToMap(fallback);
+        }
+        return;
+    }
+    if (pongState.winner) {
+        return;
+    }
+
+    const { paddle, left, right, ball } = pongState;
+
+    if (keys.w.pressed) left.y -= paddle.speed;
+    if (keys.s.pressed) left.y += paddle.speed;
+    left.y = Math.max(0, Math.min(canvas.height - paddle.height, left.y));
+
+    if (keys.up.pressed) right.y -= paddle.speed;
+    if (keys.down.pressed) right.y += paddle.speed;
+    right.y = Math.max(0, Math.min(canvas.height - paddle.height, right.y));
+
+    ball.x += ball.vx;
+    ball.y += ball.vy;
+
+    if (ball.y - ball.radius <= 0 || ball.y + ball.radius >= canvas.height) {
+        ball.vy *= -1;
+    }
+
+    const hitLeft = (
+        ball.x - ball.radius <= left.x + paddle.width &&
+        ball.x + ball.radius >= left.x &&
+        ball.y + ball.radius >= left.y &&
+        ball.y - ball.radius <= left.y + paddle.height &&
+        ball.vx < 0
+    );
+    if (hitLeft) {
+        let offset = (ball.y - (left.y + paddle.height / 2)) / (paddle.height / 2);
+        offset = Math.max(-1, Math.min(1, offset));
+        const nextSpeed = Math.min(pongState.maxSpeed, ball.speed + pongState.speedStep);
+        const vy = offset * nextSpeed * 0.75;
+        const vx = Math.sqrt(Math.max(0.1, nextSpeed * nextSpeed - vy * vy));
+        ball.speed = nextSpeed;
+        ball.vx = vx;
+        ball.vy = vy;
+    }
+
+    const hitRight = (
+        ball.x + ball.radius >= right.x &&
+        ball.x - ball.radius <= right.x + paddle.width &&
+        ball.y + ball.radius >= right.y &&
+        ball.y - ball.radius <= right.y + paddle.height &&
+        ball.vx > 0
+    );
+    if (hitRight) {
+        let offset = (ball.y - (right.y + paddle.height / 2)) / (paddle.height / 2);
+        offset = Math.max(-1, Math.min(1, offset));
+        const nextSpeed = Math.min(pongState.maxSpeed, ball.speed + pongState.speedStep);
+        const vy = offset * nextSpeed * 0.75;
+        const vx = Math.sqrt(Math.max(0.1, nextSpeed * nextSpeed - vy * vy));
+        ball.speed = nextSpeed;
+        ball.vx = -vx;
+        ball.vy = vy;
+    }
+
+    if (ball.x + ball.radius < 0) {
+        pongState.score.right += 1;
+        if (pongState.score.right >= 3) {
+            pongState.winner = 'right';
+            return;
+        }
+        resetPongBall(1);
+    }
+    if (ball.x - ball.radius > canvas.width) {
+        pongState.score.left += 1;
+        if (pongState.score.left >= 3) {
+            pongState.winner = 'left';
+            return;
+        }
+        resetPongBall(-1);
+    }
+}
+
+function drawPong() {
+    const { paddle, left, right, ball, score } = pongState;
+
+    c.fillStyle = '#fff';
+    for (let y = 20; y < canvas.height; y += 24) {
+        c.fillRect(canvas.width / 2 - 1, y, 2, 12);
+    }
+
+    c.fillRect(left.x, left.y, paddle.width, paddle.height);
+    c.fillRect(right.x, right.y, paddle.width, paddle.height);
+
+    c.beginPath();
+    c.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
+    c.fill();
+
+    c.font = '24px monospace';
+    c.textAlign = 'center';
+    c.fillText(score.left, canvas.width / 2 - 60, 50);
+    c.fillText(score.right, canvas.width / 2 + 60, 50);
+
+    c.font = '12px monospace';
+    if (pongState.winner) {
+        const winnerText = pongState.winner === 'left' ? 'Noah wins!' : 'Cathlyn wins!';
+        c.fillText(`${winnerText} Press E to exit`, canvas.width / 2, canvas.height - 20);
+    } else {
+        c.fillText('First to 3 wins. Press E to exit', canvas.width / 2, canvas.height - 20);
+    }
+}
+// --------------------------------------------------
+
+
 function loadMap(mapName, options = {}) {
     const mapConfig = maps[mapName];
     if (!mapConfig) return console.error(`Map "${mapName}" not found!`);
 
+    if (mapName !== currentMap) {
+        previousMap = currentMap;
+    }
     currentMap = mapName;
     enterInitiated = true;
     if (gameStarted) {
@@ -352,6 +516,10 @@ function loadMap(mapName, options = {}) {
         bokbok.position.x = bokbokTile.x * tileWidth + offset.x + gridOffset.x;
         bokbok.position.y = bokbokTile.y * tileHeight + offset.y + gridOffset.y;
     }
+    pongState.active = mapConfig.mode === 'pong';
+    if (pongState.active) {
+        initPong();
+    }
 
     // swap images
     setSpriteImage(background, mapConfig.image);
@@ -406,7 +574,8 @@ function loadMap(mapName, options = {}) {
         }
         bokbokZone.action = {
             type: 'dialogue',
-            text: 'Bokbok: Bawk bawk! Prove your love! BAWK!'
+            text: 'Bokbok: Bawk bawk! Prove your love! BAWK!',
+            sfx: './audio/bokbok.wav'
         };
         enterZones.push(bokbokZone);
     }
@@ -423,7 +592,7 @@ function loadMap(mapName, options = {}) {
 }
 
 
-// Dialogue
+// ------------- Dialogue ---------------
 function showDialogue(text, duration = 2000) {
     activeDialogue = text;
     dialogueUntil = performance.now() + duration;
@@ -450,6 +619,7 @@ function drawDialogue() {
     c.textAlign = 'left';
     c.fillText(activeDialogue, x + padding, y + 36);
 }
+// -------------------------------------------------
 
 
 // fade transition
@@ -478,6 +648,12 @@ function handleZoneInteraction(zone) {
         transitionToMap(nextMap);
         return;
     }
+    if (action.sfx || action.src) {
+        playSfx(action.sfx || action.src, action.volume ?? 1);
+    }
+    if (action.type === 'sfx' || action.type === 'sound') {
+        return;
+    }
     if (action.type === 'map') {
         transitionToMap(action.targetMap, { spawn: action.spawn, spawnType: action.spawnType });
         return;
@@ -491,13 +667,25 @@ function animate() {
     const animationId = window.requestAnimationFrame(animate);
     c.clearRect(0, 0, canvas.width, canvas.height);
     const mapConfig = maps[currentMap];
-    const foregroundAbovePlayer = mapConfig?.foregroundAbovePlayer !== false;
-    background.draw();
+    const isPong = mapConfig?.mode === 'pong';
+    if (mapConfig?.backgroundColor) {
+        c.fillStyle = mapConfig.backgroundColor;
+        c.fillRect(0, 0, canvas.width, canvas.height);
+    } else {
+        background.draw();
+    }
+    if (isPong) {
+        updatePong();
+        drawPong();
+        return;
+    }
     if (currentMap === 'overworld') {
         bokbok.draw();
     }
     player.draw();
-    foreground.draw();
+    if (mapConfig?.foreground) {
+        foreground.draw();
+    }
 
     // draw boundaries/zones last so they stay visible
     boundaries.forEach(boundary => {
@@ -653,7 +841,8 @@ let didMove = false;
             didMove = true;
         }
     }
-
+    
+    // footstep sound
     if (gameStarted && didMove) {
         const now = performance.now();
         if (now - lastStepTime >= stepIntervalMs) {
@@ -722,6 +911,19 @@ function playFootstep() {
     step.play().catch(() => {});
 }
 
+const sfxCache = new Map();
+function playSfx(src, volumeScale = 1) {
+    if (!src || isMuted) return;
+    let base = sfxCache.get(src);
+    if (!base) {
+        base = new Audio(src);
+        sfxCache.set(src, base);
+    }
+    const sfx = base.cloneNode();
+    sfx.volume = Math.min(1, userVolume * SFX_MIX * volumeScale);
+    sfx.play().catch(() => {});
+}
+
 function startGame() {
     if (gameStarted) return;
     gameStarted = true;
@@ -779,6 +981,16 @@ window.addEventListener('keydown', (e) => {
             keys.e.pressed = true
             lastKey = 'e'
             break;
+        case 'ArrowUp':
+            keys.up.pressed = true;
+            lastKey = 'ArrowUp';
+            e.preventDefault();
+            break;
+        case 'ArrowDown':
+            keys.down.pressed = true;
+            lastKey = 'ArrowDown';
+            e.preventDefault();
+            break;
     }
 })
 
@@ -798,6 +1010,14 @@ window.addEventListener('keyup', (e) => {
             break;
         case 'e':
             keys.e.pressed = false;
+            break;
+        case 'ArrowUp':
+            keys.up.pressed = false;
+            e.preventDefault();
+            break;
+        case 'ArrowDown':
+            keys.down.pressed = false;
+            e.preventDefault();
             break;
     }
 })
