@@ -3,6 +3,8 @@ const c = canvas.getContext('2d'); // c = context
 
 let currentMap = 'overworld';
 let enterInitiated = false;
+let activeDialogue = '';
+let dialogueUntil = 0;
 
 // batte activation 
 // gsap.to('#fade', {
@@ -16,61 +18,17 @@ canvas.width = 1280
 canvas.height = 720
 
 // // ----------- Collisions + Enter Zones -----------
-// // main map
-// const collisionsMap = []
-// for (let i = 0; i < collisions.length; i+=53) {
-//     collisionsMap.push(collisions.slice(i, 53 + i));
-// }
-
-// const enterZonesMap = []
-// for (let i = 0; i < enterZonesData.length; i+=53) {
-//     enterZonesMap.push(enterZonesData.slice(i, 53 + i));
-// }
-
 const boundaries = [];
 const enterZones = [];
 
-// const boundaries = [];
 const offset = {
     x: -1198,
     y: -40
 }
-// collisionsMap.forEach((row, i) => {
-//     row.forEach((symbol, j) => {
-//         if (symbol === 1025) { // ensure comparison works
-//             boundaries.push(
-//                 new Boundary({
-//                     position: {
-//                         x: j * Boundary.width + offset.x,
-//                         y: i * Boundary.height + offset.y
-//                     }
-//                 })
-//             )
-//         }
-//     })
-// });
-
-// const enterZones = [];
-
-// enterZonesMap.forEach((row, i) => {
-//     row.forEach((symbol, j) => {
-//         if (symbol === 1025) { // ensure comparison works
-//             enterZones.push(
-//                 new Boundary({
-//                     position: {
-//                         x: j * Boundary.width + offset.x,
-//                         y: i * Boundary.height + offset.y
-//                     }
-//                 })
-//             )
-//         }
-//     })
-// });
-
 
 
 // ----------- Images + Sprites -----------
-// main map
+// dynamic map changing
 let background = new Sprite({
     position: { x: -1198, y: -40 },
     image: new Image()
@@ -81,14 +39,10 @@ let foreground = new Sprite({
     image: new Image()
 });
 
+// default map - main
 background.img.src = './img/main.png';
 foreground.img.src = './img/foreground.png';
 
-
-
-
-// // house map
-// const imgHouse = new Image(); imgHouse.src = './img/house.png'
 
 // player
 const playerDownImg = new Image(); playerDownImg.src = './img/playerDown.png'
@@ -98,7 +52,7 @@ const playerRightImg = new Image(); playerRightImg.src = './img/playerRight.png'
 
 const player = new Sprite ({
     position: {
-        // check in files for the dimensions of char (eg 192x58)
+        // check in files for the dimensions of char (eg 192x68)
         x: canvas.width / 2 - (192 / 4) / 2,
         y: canvas.height / 2 - 68 / 2,
     },
@@ -113,6 +67,14 @@ const player = new Sprite ({
         down: playerDownImg
     }
 })
+
+// bokbok
+const bokbokImg = new Image(); bokbokImg.src = './img/bokbok.png'
+
+const bokbok = new Sprite({
+    position: { x: 0, y: 0 },
+    image: bokbokImg,
+});
 
 // ----------------------------------------------
 
@@ -144,7 +106,7 @@ const keys = {
 // }
 // doors.moving = true;
 
-const movables = [background, ...boundaries, foreground, ...enterZones];
+const movables = [background, ...boundaries, bokbok, foreground, ...enterZones];
 function rectangularCollision({ rectangle1, rectangle2 }) {
     return (
         rectangle1.position.x + rectangle1.width >=  rectangle2.position.x && 
@@ -226,7 +188,83 @@ function setSpriteImage(sprite, src) {
     nextImage.src = src;
 }
 
-function loadMap(mapName) {
+function getPlayerHitboxDimensions() {
+    const fullWidth = player.width || (192 / 4);
+    const fullHeight = player.height || 68;
+    const width = Math.round(fullWidth * 0.6);
+    const height = Math.round(fullHeight * 0.35);
+    const offsetX = Math.round((fullWidth - width) / 2);
+    const offsetY = Math.round(fullHeight - height - 4);
+    return { fullWidth, fullHeight, width, height, offsetX, offsetY };
+}
+
+function getPlayerHitbox() {
+    const dims = getPlayerHitboxDimensions();
+    return {
+        position: {
+            x: player.position.x + dims.offsetX,
+            y: player.position.y + dims.offsetY
+        },
+        width: dims.width,
+        height: dims.height
+    };
+}
+
+function isRectClear(worldX, worldY, {
+    data,
+    columns,
+    rows,
+    symbol,
+    tileWidth,
+    tileHeight,
+    hitboxWidth,
+    hitboxHeight,
+    hitboxOffsetX,
+    hitboxOffsetY
+}) {
+    if (!data || symbol === undefined) return true;
+    const hbX = worldX + hitboxOffsetX;
+    const hbY = worldY + hitboxOffsetY;
+    const left = Math.floor(hbX / tileWidth);
+    const right = Math.floor((hbX + hitboxWidth - 1) / tileWidth);
+    const top = Math.floor(hbY / tileHeight);
+    const bottom = Math.floor((hbY + hitboxHeight - 1) / tileHeight);
+    for (let y = top; y <= bottom; y++) {
+        for (let x = left; x <= right; x++) {
+            if (x < 0 || y < 0 || x >= columns || y >= rows) {
+                return false;
+            }
+            if (data[y * columns + x] === symbol) {
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
+function findNearestOpenTile(startX, startY, config) {
+    const { columns, rows, tileWidth, tileHeight } = config;
+    if (isRectClear(startX * tileWidth, startY * tileHeight, config)) {
+        return { x: startX, y: startY };
+    }
+    const maxRadius = Math.max(columns, rows);
+    for (let r = 1; r <= maxRadius; r++) {
+        for (let dy = -r; dy <= r; dy++) {
+            for (let dx = -r; dx <= r; dx++) {
+                if (Math.abs(dx) !== r && Math.abs(dy) !== r) continue;
+                const x = startX + dx;
+                const y = startY + dy;
+                if (x < 0 || y < 0 || x >= columns || y >= rows) continue;
+                if (isRectClear(x * tileWidth, y * tileHeight, config)) {
+                    return { x, y };
+                }
+            }
+        }
+    }
+    return { x: startX, y: startY };
+}
+
+function loadMap(mapName, options = {}) {
     const mapConfig = maps[mapName];
     if (!mapConfig) return console.error(`Map "${mapName}" not found!`);
 
@@ -272,22 +310,24 @@ function loadMap(mapName) {
             y: (grid.imageSize.height - (tileHeight * rows)) / 2
         }
         : { x: 0, y: 0 });
-    const spawnType = mapConfig.spawnType || 'screen';
-    if (mapConfig.spawn) {
+
+    const spawnType = options.spawnType ?? mapConfig.spawnType ?? 'screen';
+    const spawn = options.spawn ?? mapConfig.spawn;
+    if (spawn) {
         if (spawnType === 'screen') {
-            player.position.x = mapConfig.spawn.x;
-            player.position.y = mapConfig.spawn.y;
+            player.position.x = spawn.x;
+            player.position.y = spawn.y;
             offset = { ...(grid.offset || mapConfig.offset || { x: 0, y: 0 }) };
         } else {
             let spawnWorld;
             if (spawnType === 'tile') {
                 const maxX = Math.max(0, (columns ?? 1) - 1);
                 const maxY = Math.max(0, (rows ?? 1) - 1);
-                const clampedX = Math.max(0, Math.min(mapConfig.spawn.x, maxX));
-                const clampedY = Math.max(0, Math.min(mapConfig.spawn.y, maxY));
+                const clampedX = Math.max(0, Math.min(spawn.x, maxX));
+                const clampedY = Math.max(0, Math.min(spawn.y, maxY));
                 spawnWorld = { x: clampedX * tileWidth, y: clampedY * tileHeight };
             } else {
-                spawnWorld = { x: mapConfig.spawn.x, y: mapConfig.spawn.y };
+                spawnWorld = { x: spawn.x, y: spawn.y };
             }
             offset = {
                 x: centeredPlayer.x - spawnWorld.x,
@@ -305,6 +345,13 @@ function loadMap(mapName) {
         x: offset.x + viewOffset.x,
         y: offset.y + viewOffset.y
     };
+
+    // bokbok's placement in overworld
+    if (currentMap === 'overworld') {
+        const bokbokTile = { x: 33, y: 4 };
+        bokbok.position.x = bokbokTile.x * tileWidth + offset.x + gridOffset.x;
+        bokbok.position.y = bokbokTile.y * tileHeight + offset.y + gridOffset.y;
+    }
 
     // swap images
     setSpriteImage(background, mapConfig.image);
@@ -328,20 +375,116 @@ function loadMap(mapName) {
     );
 
     // reload enter zones
-    loadBoundaries(
-        enterZonesData,
-        columns,
-        enterZoneSymbol,
-        offset,
-        enterZones,
-        gridOffset
-    );
+    const enterZoneTypes = mapConfig.enterZones?.types;
+    if (enterZoneTypes) {
+        loadEnterZones({
+            data: enterZonesData,
+            columns,
+            offset,
+            gridOffset,
+            zoneTypes: enterZoneTypes,
+            targetArray: enterZones
+        });
+    } else if (enterZoneSymbol !== undefined) {
+        loadBoundaries(
+            enterZonesData,
+            columns,
+            enterZoneSymbol,
+            offset,
+            enterZones,
+            gridOffset
+        );
+    }
+    // bokbok interaction
+    if (currentMap === 'overworld') {
+        const bokbokZone = new Boundary({
+            position: { x: bokbok.position.x, y: bokbok.position.y }
+        });
+        if (bokbok.width && bokbok.height) {
+            bokbokZone.width = bokbok.width;
+            bokbokZone.height = bokbok.height;
+        }
+        bokbokZone.action = {
+            type: 'dialogue',
+            text: 'Bokbok: Bawk bawk! Prove your love! BAWK!'
+        };
+        enterZones.push(bokbokZone);
+    }
 
     // rebuild movables
     movables.length = 0;
-    movables.push(background, ...boundaries, foreground, ...enterZones);
+    if (currentMap === 'overworld') {
+        movables.push(background, ...boundaries, bokbok, foreground, ...enterZones);
+    } else {
+        movables.push(background, ...boundaries, foreground, ...enterZones);
+    }
 
     enterInitiated = false;
+}
+
+
+// Dialogue
+function showDialogue(text, duration = 2000) {
+    activeDialogue = text;
+    dialogueUntil = performance.now() + duration;
+}
+
+function drawDialogue() {
+    if (!activeDialogue) return;
+    if (performance.now() > dialogueUntil) {
+        activeDialogue = '';
+        return;
+    }
+    const padding = 16;
+    const boxWidth = canvas.width - 80;
+    const boxHeight = 60;
+    const x = 40;
+    const y = canvas.height - boxHeight - 30;
+    c.fillStyle = 'rgba(0, 0, 0, 0.7)';
+    c.fillRect(x, y, boxWidth, boxHeight);
+    c.strokeStyle = 'white';
+    c.lineWidth = 2;
+    c.strokeRect(x, y, boxWidth, boxHeight);
+    c.fillStyle = 'white';
+    c.font = '16px monospace';
+    c.textAlign = 'left';
+    c.fillText(activeDialogue, x + padding, y + 36);
+}
+
+
+// fade transition
+function transitionToMap(targetMap, options = {}) {
+    if (enterInitiated) return;
+    enterInitiated = true;
+    keys.e.pressed = false;
+    gsap.to('#fade', {
+        opacity: 1,
+        duration: 0.8,
+        onComplete() {
+            loadMap(targetMap, options);
+            gsap.to('#fade', {
+                opacity: 0,
+                duration: 0.8,
+                delay: 0.5,
+            });
+        }
+    });
+}
+
+function handleZoneInteraction(zone) {
+    const action = zone.action;
+    if (!action) {
+        const nextMap = currentMap === 'overworld' ? 'house' : 'overworld';
+        transitionToMap(nextMap);
+        return;
+    }
+    if (action.type === 'map') {
+        transitionToMap(action.targetMap, { spawn: action.spawn, spawnType: action.spawnType });
+        return;
+    }
+    if (action.type === 'dialogue') {
+        showDialogue(action.text || '...');
+    }
 }
 
 function animate() {
@@ -350,13 +493,11 @@ function animate() {
     const mapConfig = maps[currentMap];
     const foregroundAbovePlayer = mapConfig?.foregroundAbovePlayer !== false;
     background.draw();
-    if (!foregroundAbovePlayer) {
-        foreground.draw();
+    if (currentMap === 'overworld') {
+        bokbok.draw();
     }
     player.draw();
-    if (foregroundAbovePlayer) {
-        foreground.draw();
-    }
+    foreground.draw();
 
     // draw boundaries/zones last so they stay visible
     boundaries.forEach(boundary => {
@@ -373,6 +514,7 @@ function animate() {
 
     // enter zone detection
     let isOnEnterZone = false;
+    let activeZone = null;
     for (let i = 0; i < enterZones.length; i++) {
         const zone = enterZones[i];
         if (rectangularCollision({
@@ -380,28 +522,13 @@ function animate() {
             rectangle2: zone
         })) {
             isOnEnterZone = true;
-            if (keys.e.pressed && !enterInitiated) {
-                console.log('Transitioning to new map!');
-                enterInitiated = true;
-                keys.e.pressed =false;
-
-                const nextMap = currentMap === 'overworld' ? 'house' : 'overworld';
-                gsap.to('#fade', {
-                    opacity: 1,
-                    duration: 0.8,
-                    onComplete() {
-                        loadMap(nextMap);
-                        gsap.to('#fade', {
-                            opacity: 0,
-                            duration: 0.8,
-                            delay: 0.5,
-                        })
-                    }
-                })
-            }
-            keys.e.pressed =false;
+            activeZone = zone;
             break;
         }
+    }
+    if (isOnEnterZone && keys.e.pressed && !enterInitiated && activeZone) {
+        handleZoneInteraction(activeZone);
+        keys.e.pressed = false;
     }
     // E to interact w/ enter zone
     if (isOnEnterZone) {
@@ -418,9 +545,11 @@ function animate() {
         c.font = '16px monospace';
         c.fillText('interact', canvas.width / 2 + 10, canvas.height - 70);
     }
+    drawDialogue();
 
 let moving = true;
 player.moving = false;
+let didMove = false;
 
     if (enterInitiated) {
         return;
@@ -449,7 +578,8 @@ player.moving = false;
         if (moving) {
             movables.forEach((movable) => {
                 movable.position.y += 3
-            }) 
+            })
+            didMove = true;
         } // moves character
     } if (keys.s.pressed) {
         player.moving = true;
@@ -472,6 +602,7 @@ player.moving = false;
         if (moving) {movables.forEach(movable => {
                 movable.position.y -= 3;
             })
+            didMove = true;
         }
     } if (keys.a.pressed) {
         player.moving = true;
@@ -495,6 +626,7 @@ player.moving = false;
             movables.forEach(movable => {
                 movable.position.x += 3;
             })
+            didMove = true;
         }
     } if (keys.d.pressed) {
         player.moving = true;   
@@ -518,6 +650,15 @@ player.moving = false;
             movables.forEach(movable => {
                 movable.position.x -= 3;
             })
+            didMove = true;
+        }
+    }
+
+    if (gameStarted && didMove) {
+        const now = performance.now();
+        if (now - lastStepTime >= stepIntervalMs) {
+            playFootstep();
+            lastStepTime = now;
         }
     }
     
@@ -526,15 +667,21 @@ player.moving = false;
 const startScreen = document.getElementById('startScreen');
 const startButton = document.getElementById('startButton');
 const bgm = document.getElementById('bgm');
+const footstepSfx = document.getElementById('footstepSfx');
 const muteButton = document.getElementById('muteButton');
 const volumeSlider = document.getElementById('volumeSlider');
 let isMuted = false;
-let userVolume = 0.5;
+const DEFAULT_VOLUME = 0.5;
+const MUSIC_MIX = 0.25; // music quieter than SFX
+const SFX_MIX = 0.7;
+let userVolume = DEFAULT_VOLUME;
 let gameStarted = false;
+let lastStepTime = 0;
+const stepIntervalMs = 350;
 
 function applyVolume() {
     if (!bgm) return;
-    bgm.volume = userVolume;
+    bgm.volume = Math.min(1, userVolume * MUSIC_MIX);
     bgm.muted = isMuted;
     if (muteButton) {
         muteButton.textContent = isMuted ? 'Unmute' : 'Mute';
@@ -563,9 +710,16 @@ function playBgm(src) {
         duration: 0.4,
         onComplete: () => {
             startTrack();
-            gsap.to(bgm, { volume: userVolume, duration: 0.6 });
+            gsap.to(bgm, { volume: Math.min(1, userVolume * MUSIC_MIX), duration: 0.6 });
         }
     });
+}
+
+function playFootstep() {
+    if (!footstepSfx || isMuted) return;
+    const step = footstepSfx.cloneNode();
+    step.volume = Math.min(1, userVolume * SFX_MIX);
+    step.play().catch(() => {});
 }
 
 function startGame() {

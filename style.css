@@ -22,7 +22,7 @@ canvas {
 #startScreen {
     position: absolute;
     inset: 0;
-    background: url('./img/main.png') center / cover no-repeat;
+    background: black /* url('./img/main.png') */ center / cover no-repeat;
     display: flex;
     align-items: center;
     justify-content: center;

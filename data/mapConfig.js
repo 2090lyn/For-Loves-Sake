@@ -2,7 +2,6 @@ const maps = {
     overworld: {
         image: './img/main.png',
         foreground: './img/foreground.png',
-        foregroundAbovePlayer: true,
         spawnType: 'world',
         spawn: { x: 1814, y: 366 },
         viewOffset: { x: 0, y: 0 },
@@ -22,8 +21,7 @@ const maps = {
                 1025: {
                     type: 'map',
                     targetMap: 'house',
-                    spawnType: 'tile',
-                    spawn: { x: 15, y: 14 }
+                    spawnType: 'tile'
                 }
             }
         }
@@ -31,9 +29,8 @@ const maps = {
     house: {
         image: './img/house.png',
         foreground: './img/foregroundHouse.png',
-        foregroundAbovePlayer: true,
         spawnType: 'tile',
-        spawn: { x: 13.5, y: 20 },
+        spawn: { x: 13.5, y: 21 },
         viewOffset: { x: 0, y: 0 },
         bgm: './audio/house.mp3',
         grid: {
