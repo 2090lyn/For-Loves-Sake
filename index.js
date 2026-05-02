@@ -89,8 +89,6 @@ const keys = {
     down: { pressed: false }
 }
 
-const PLAYER_SPEED = 5;
-
 // const dungeonDoorImg = new Image()
 // dungeonDoorImg.src = './img/dungeonDoor.png'
 
@@ -756,8 +754,8 @@ let didMove = false;
                 rectangle1: player, 
                 rectangle2: {...boundary, 
                     position: {
-                    x: boundary.position.x,
-                        y: boundary.position.y + PLAYER_SPEED
+                        x: boundary.position.x,
+                        y: boundary.position.y + 3
                     }
                 }   
             })) {
@@ -767,7 +765,7 @@ let didMove = false;
         }
         if (moving) {
             movables.forEach((movable) => {
-                movable.position.y += PLAYER_SPEED
+                movable.position.y += 3
             })
             didMove = true;
         } // moves character
@@ -781,7 +779,7 @@ let didMove = false;
             rectangle2: {...boundary, 
                 position: {
                     x: boundary.position.x,
-                    y: boundary.position.y - PLAYER_SPEED
+                    y: boundary.position.y - 3
                 }
             }   
         })) {
@@ -790,7 +788,7 @@ let didMove = false;
             }
         }
         if (moving) {movables.forEach(movable => {
-                movable.position.y -= PLAYER_SPEED;
+                movable.position.y -= 3;
             })
             didMove = true;
         }
@@ -803,7 +801,7 @@ let didMove = false;
                 rectangle1: player, 
                 rectangle2: {...boundary, 
                     position: {
-                        x: boundary.position.x + PLAYER_SPEED,
+                        x: boundary.position.x + 3,
                         y: boundary.position.y
                     }
                 }   
@@ -814,7 +812,7 @@ let didMove = false;
         }
         if (moving) {
             movables.forEach(movable => {
-                movable.position.x += PLAYER_SPEED;
+                movable.position.x += 3;
             })
             didMove = true;
         }
@@ -827,7 +825,7 @@ let didMove = false;
                 rectangle1: player, 
                 rectangle2: {...boundary, 
                     position: {
-                        x: boundary.position.x - PLAYER_SPEED,
+                        x: boundary.position.x - 3,
                         y: boundary.position.y
                     }
                 }   
@@ -838,7 +836,7 @@ let didMove = false;
         }
         if (moving) {
             movables.forEach(movable => {
-                movable.position.x -= PLAYER_SPEED;
+                movable.position.x -= 3;
             })
             didMove = true;
         }
